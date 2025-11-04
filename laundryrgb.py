@@ -5,7 +5,7 @@ import adafruit_tcs34725
 
 i2c = busio.I2C(board.SCL, board.SDA)
 sensor = adafruit_tcs34725.TCS34725(i2c)
-sensor.integration_time = 100
+sensor.integration_time = 500
 sensor.gain = 60
 
 while True: 
@@ -25,10 +25,10 @@ while True:
     print("Lux:", sensor.lux)
     print("Normalized RGB:", rgb)
 
-    if brightness > 0.5:
-        print("Light / White Clothing Detected")
-    else:
+    if c > 100 or brightness > 0.2:
         print("Dark / Colored Clothing Detected")
+    else:
+        print("Light / White Clothing Detected")
     print("-----------------------------")
     time.sleep(1)
     
