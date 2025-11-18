@@ -1,78 +1,59 @@
 import RPi.GPIO as GPIO
 import time
-import board
-import digitalio
+
+BUTTON_PIN = 17
+LEFT_SERVO = 18
+RIGHT_SERVO = 19  # Example second pin
 
 GPIO.setmode(GPIO.BCM)
+GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+GPIO.setup(LEFT_SERVO, GPIO.OUT)
+GPIO.setup(RIGHT_SERVO, GPIO.OUT)
 
-# Servo pins
-SERVO_LEFT = 18
-SERVO_RIGHT = 19
+left_pwm = GPIO.PWM(LEFT_SERVO, 50)
+right_pwm = GPIO.PWM(RIGHT_SERVO, 50)
+left_pwm.start(0)
+right_pwm.start(0)
 
-GPIO.setup(SERVO_LEFT, GPIO.OUT)
-GPIO.setup(SERVO_RIGHT, GPIO.OUT)
+def move_servo(pwm, start_angle, end_angle, step=2, delay=0.02):
+    if start_angle < end_angle:
+        angles = range(start_angle, end_angle + 1, step)
+    else:
+        angles = range(start_angle, end_angle - 1, -step)
+    for angle in angles:
+        duty = 2 + (angle / 18)
+        pwm.ChangeDutyCycle(duty)
+        time.sleep(delay)
+    pwm.ChangeDutyCycle(0)
 
-left = GPIO.PWM(SERVO_LEFT, 50)     # normal servo
-right = GPIO.PWM(SERVO_RIGHT, 50)   # reversed servo
-left.start(0)
-right.start(0)
+print("Press the button to flip the hamper 90° each time.")
 
-button = digitalio.DigitalInOut(board.D17)
-button.switch_to_input(pull=digitalio.Pull.DOWN)
-
-is_open = False
-last_state = False
-
-def angle_to_duty(angle):
-    """Normal servo conversion."""
-    return 2.5 + (angle / 180.0) * 10
-
-def set_servo_mirrored(left_angle):
-    """
-    Moves left servo normally, moves right servo as a MIRROR
-    using reversed duty cycle instead of reversed angle.
-    This keeps both movements synchronized.
-    """
-    # Normal servo movement
-    left_duty = angle_to_duty(left_angle)
-
-    # Mirrored reversed servo movement (perfect inversion)
-    # 2.5 → 12.5 becomes 12.5 → 2.5
-    right_duty = 15 - left_duty
-
-    # send signals
-    left.ChangeDutyCycle(left_duty)
-    right.ChangeDutyCycle(right_duty)
-
-    time.sleep(0.3)
-
-    # stop driving to avoid jitter
-    left.ChangeDutyCycle(0)
-    right.ChangeDutyCycle(0)
-
-print("Ready. Press button to toggle flaps (perfect mirrored control).")
+last_button_state = GPIO.input(BUTTON_PIN)
+current_angle = 180  # Start neutral (closed)
 
 try:
     while True:
-        current_state = button.value
+        button_state = GPIO.input(BUTTON_PIN)
 
-        if current_state and not last_state:  # edge detect
-            if is_open:
-                # CLOSE → left = 180, right auto-mirrors
-                set_servo_mirrored(180)
-                is_open = False
-            else:
-                # OPEN → left = 90, right mirrors perfectly
-                set_servo_mirrored(90)
-                is_open = True
+        if last_button_state == GPIO.HIGH and button_state == GPIO.LOW:
+            print("Button pressed! Flipping servos...")
 
-            time.sleep(0.25)
+            # Compute next angle
+            next_angle = 90 if current_angle == 180 else 180
 
-        last_state = current_state
-        time.sleep(0.02)
+            # Move left servo
+            move_servo(left_pwm, current_angle, next_angle)
+            # Move right servo mirrored
+            move_servo(right_pwm, 180 - current_angle, 180 - next_angle)
+
+            current_angle = next_angle
+            print(f"Left servo: {current_angle}°, Right servo: {180 - current_angle}°")
+
+        last_button_state = button_state
+        time.sleep(0.05)
 
 except KeyboardInterrupt:
-    left.stop()
-    right.stop()
+    left_pwm.stop()
+    right_pwm.stop()
     GPIO.cleanup()
-    print("Stopped.")
+    print("Program terminated")
