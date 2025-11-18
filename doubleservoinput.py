@@ -3,9 +3,6 @@ import time
 import board
 import digitalio
 
-# ---------------------------
-# GPIO Setup
-# ---------------------------
 GPIO.setmode(GPIO.BCM)
 
 # Servo pins
@@ -15,66 +12,61 @@ SERVO_RIGHT = 19
 GPIO.setup(SERVO_LEFT, GPIO.OUT)
 GPIO.setup(SERVO_RIGHT, GPIO.OUT)
 
-# PWM setup
-left = GPIO.PWM(SERVO_LEFT, 50)
-right = GPIO.PWM(SERVO_RIGHT, 50)
-
+left = GPIO.PWM(SERVO_LEFT, 50)     # normal servo
+right = GPIO.PWM(SERVO_RIGHT, 50)   # reversed servo
 left.start(0)
 right.start(0)
 
-# Button setup using digitalio (pull-down)
 button = digitalio.DigitalInOut(board.D17)
 button.switch_to_input(pull=digitalio.Pull.DOWN)
 
-# Calibration offsets (degrees). Start at 0; tweak if needed.
-left_offset = 0     # add/subtract to fine-tune left servo
-right_offset = 0    # add/subtract to fine-tune right servo
-
-# Track state
 is_open = False
-last_state = False  # for edge detection
+last_state = False
 
-# ---------------------------
-# Move servo to angle (with offset clamp 0-180)
-# ---------------------------
-def set_angle(pwm, angle, offset=0):
-    a = int(angle + offset)
-    if a < 0: a = 0
-    if a > 180: a = 180
-    duty = 2.5 + (a / 180.0) * 10
-    pwm.ChangeDutyCycle(duty)
-    time.sleep(0.25)
-    pwm.ChangeDutyCycle(0)
+def angle_to_duty(angle):
+    """Normal servo conversion."""
+    return 2.5 + (angle / 180.0) * 10
 
-print("System ready. Press button to toggle flaps (mirrored).")
+def set_servo_mirrored(left_angle):
+    """
+    Moves left servo normally, moves right servo as a MIRROR
+    using reversed duty cycle instead of reversed angle.
+    This keeps both movements synchronized.
+    """
+    # Normal servo movement
+    left_duty = angle_to_duty(left_angle)
 
-# ---------------------------
-# MAIN LOOP
-# ---------------------------
+    # Mirrored reversed servo movement (perfect inversion)
+    # 2.5 → 12.5 becomes 12.5 → 2.5
+    right_duty = 15 - left_duty
+
+    # send signals
+    left.ChangeDutyCycle(left_duty)
+    right.ChangeDutyCycle(right_duty)
+
+    time.sleep(0.3)
+
+    # stop driving to avoid jitter
+    left.ChangeDutyCycle(0)
+    right.ChangeDutyCycle(0)
+
+print("Ready. Press button to toggle flaps (perfect mirrored control).")
+
 try:
     while True:
-        current_state = button.value   # True = pressed
+        current_state = button.value
 
-        # Detect rising edge (button press)
-        if current_state and not last_state:
-            print("Button pressed!")
-
+        if current_state and not last_state:  # edge detect
             if is_open:
-                # CLOSE: Left->180 (closed), Right -> mirror(180) = 0 (closed mirrored)
-                left_target = 180
+                # CLOSE → left = 180, right auto-mirrors
+                set_servo_mirrored(180)
+                is_open = False
             else:
-                # OPEN: Left->90 (open), Right -> mirror(90) = 90
-                left_target = 90
+                # OPEN → left = 90, right mirrors perfectly
+                set_servo_mirrored(90)
+                is_open = True
 
-            # compute mirrored right target
-            right_target = 180 - left_target
-
-            # apply offsets and move both servos
-            set_angle(left, left_target, left_offset)
-            set_angle(right, right_target, right_offset)
-
-            is_open = not is_open
-            time.sleep(0.3)  # debounce
+            time.sleep(0.25)
 
         last_state = current_state
         time.sleep(0.02)
@@ -83,4 +75,4 @@ except KeyboardInterrupt:
     left.stop()
     right.stop()
     GPIO.cleanup()
-    print("Program stopped.")
+    print("Stopped.")
