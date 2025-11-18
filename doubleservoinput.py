@@ -3,11 +3,9 @@ import time
 import board
 import digitalio
 
-# -----------------------
-# GPIO Setup
-# -----------------------
 GPIO.setmode(GPIO.BCM)
 
+# Servo pins
 SERVO1 = 18
 SERVO2 = 19
 BUTTON = board.D17
@@ -31,10 +29,20 @@ last_state = False
 # -----------------------
 # Move both servos
 # -----------------------
-def move_both(angle):
-    duty = 2.5 + (angle / 180.0) * 10
-    servo1.ChangeDutyCycle(duty)
-    servo2.ChangeDutyCycle(duty)
+def move_flaps(left_angle):
+    # For a simple quick fix: if open = 90, send 180 to servo2
+    if left_angle == 90:
+        servo2_angle = 90  # tweak this until visually matches open
+    elif left_angle == 180:
+        servo2_angle = 180
+    else:
+        servo2_angle = left_angle  # default
+
+    duty1 = 2.5 + (left_angle / 180.0) * 10
+    duty2 = 2.5 + (servo2_angle / 180.0) * 10
+
+    servo1.ChangeDutyCycle(duty1)
+    servo2.ChangeDutyCycle(duty2)
     time.sleep(0.3)
     servo1.ChangeDutyCycle(0)
     servo2.ChangeDutyCycle(0)
@@ -50,11 +58,11 @@ try:
 
         if current_state and not last_state:  # button pressed
             if is_open:
-                move_both(180)  # close flaps
+                move_flaps(180)  # close flaps
                 is_open = False
                 print("Flaps CLOSED")
             else:
-                move_both(90)   # open flaps
+                move_flaps(90)   # open flaps
                 is_open = True
                 print("Flaps OPEN")
 
