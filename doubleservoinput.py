@@ -6,8 +6,8 @@ import digitalio
 GPIO.setmode(GPIO.BCM)
 
 # Servo pins
-SERVO1 = 18
-SERVO2 = 19
+SERVO1 = 18  # left servo
+SERVO2 = 19  # right servo
 BUTTON = board.D17
 
 GPIO.setup(SERVO1, GPIO.OUT)
@@ -27,19 +27,13 @@ is_open = False
 last_state = False
 
 # -----------------------
-# Move both servos
+# Move servos in opposite directions
 # -----------------------
 def move_flaps(left_angle):
-    # For a simple quick fix: if open = 90, send 180 to servo2
-    if left_angle == 90:
-        servo2_angle = 90  # tweak this until visually matches open
-    elif left_angle == 180:
-        servo2_angle = 180
-    else:
-        servo2_angle = left_angle  # default
+    right_angle = 270 - left_angle  # simple inversion: 90->180, 180->90
 
     duty1 = 2.5 + (left_angle / 180.0) * 10
-    duty2 = 2.5 + (servo2_angle / 180.0) * 10
+    duty2 = 2.5 + (right_angle / 180.0) * 10
 
     servo1.ChangeDutyCycle(duty1)
     servo2.ChangeDutyCycle(duty2)
@@ -56,7 +50,8 @@ try:
     while True:
         current_state = button.value
 
-        if current_state and not last_state:  # button pressed
+        # Detect rising edge
+        if current_state and not last_state:
             if is_open:
                 move_flaps(180)  # close flaps
                 is_open = False
