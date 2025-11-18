@@ -3,14 +3,11 @@ import time
 import board
 import digitalio
 
-# ---------------------------
-# GPIO Setup
-# ---------------------------
 GPIO.setmode(GPIO.BCM)
 
 # Servo pins
-SERVO_LEFT = 18
-SERVO_RIGHT = 19
+SERVO_LEFT = 18    # Servo1
+SERVO_RIGHT = 19   # Servo2 (flipped physically)
 
 GPIO.setup(SERVO_LEFT, GPIO.OUT)
 GPIO.setup(SERVO_RIGHT, GPIO.OUT)
@@ -25,29 +22,30 @@ right.start(0)
 button = digitalio.DigitalInOut(board.D17)
 button.switch_to_input(pull=digitalio.Pull.DOWN)
 
-# Track flap state
 is_open = False
 last_state = False  # for edge detection
 
 # ---------------------------
-# Move servos identically
+# Move servos
 # ---------------------------
-def move_flaps(target_angle):
+def move_flaps(left_angle):
     """
-    Both servos move to the exact same angle.
+    Servo1 (left) moves normally.
+    Servo2 (right) is physically flipped, so we invert the angle:
+    right_angle = 180 - left_angle
     """
-    duty = 2.5 + (target_angle / 180) * 10
-    left.ChangeDutyCycle(duty)
-    right.ChangeDutyCycle(duty)
-    time.sleep(0.3)  # movement time
+    left_duty = 2.5 + (left_angle / 180) * 10
+    right_angle = 180 - left_angle
+    right_duty = 2.5 + (right_angle / 180) * 10
+
+    left.ChangeDutyCycle(left_duty)
+    right.ChangeDutyCycle(right_duty)
+    time.sleep(0.3)
     left.ChangeDutyCycle(0)
     right.ChangeDutyCycle(0)
 
-print("System ready. Press button to toggle flaps.")
+print("System ready. Press button to toggle flaps (servo2 mirrored mechanically).")
 
-# ---------------------------
-# Main loop
-# ---------------------------
 try:
     while True:
         current_state = button.value
@@ -55,13 +53,13 @@ try:
         # Detect rising edge (button press)
         if current_state and not last_state:
             if is_open:
-                # CLOSE flaps → both to 180°
-                move_flaps(180)
+                # CLOSE flaps
+                move_flaps(180)  # Servo1 = 180, Servo2 = 0
                 is_open = False
                 print("Flaps CLOSED")
             else:
-                # OPEN flaps → both to 90°
-                move_flaps(90)
+                # OPEN flaps
+                move_flaps(90)   # Servo1 = 90, Servo2 = 90 mirrored → visually same
                 is_open = True
                 print("Flaps OPEN")
 
