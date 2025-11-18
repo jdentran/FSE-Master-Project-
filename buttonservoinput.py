@@ -1,39 +1,47 @@
 import RPi.GPIO as GPIO
 import time
 
-# Pin setup
 BUTTON_PIN = 17
 SERVO_PIN = 18
 
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Pull-up resistor
+GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(SERVO_PIN, GPIO.OUT)
 
 pwm = GPIO.PWM(SERVO_PIN, 50)
 pwm.start(0)
 
-def set_servo_angle(angle):
-    duty = 2 + (angle / 18)
-    pwm.ChangeDutyCycle(duty)
-    time.sleep(0.5)  # Time for servo to move
+def move_servo(start_angle, end_angle, step=2, delay=0.02):
+    if start_angle < end_angle:
+        angles = range(start_angle, end_angle + 1, step)
+    else:
+        angles = range(start_angle, end_angle - 1, -step)
+    
+    for angle in angles:
+        duty = 2 + (angle / 18)
+        pwm.ChangeDutyCycle(duty)
+        time.sleep(delay)
     pwm.ChangeDutyCycle(0)
 
-print("Press the button to rotate servo 0° → 180°")
+print("Press the button to flip the hamper.")
+
+last_button_state = GPIO.input(BUTTON_PIN)
+current_angle = 0  # Start neutral at 0°
 
 try:
     while True:
-        # Wait for button press
-        if GPIO.input(BUTTON_PIN) == GPIO.LOW:
-            print("Button pressed! Rotating servo...")
-            set_servo_angle(180)  # Move directly to 180°
-            
-            # Wait until button released to allow next press
-            while GPIO.input(BUTTON_PIN) == GPIO.LOW:
-                time.sleep(0.05)
-            
-            print("Servo at 180°. Waiting for next button press.")
-        else:
-            time.sleep(0.05)
+        button_state = GPIO.input(BUTTON_PIN)
+
+        # Detect edge (button press)
+        if last_button_state == GPIO.HIGH and button_state == GPIO.LOW:
+            print("Button pressed! Flipping servo...")
+            next_angle = 180 if current_angle == 0 else 0
+            move_servo(current_angle, next_angle)
+            current_angle = next_angle
+            print(f"Servo now at {current_angle}°")
+
+        last_button_state = button_state
+        time.sleep(0.05)
 
 except KeyboardInterrupt:
     pwm.stop()
