@@ -3,55 +3,58 @@ import time
 import board
 import digitalio
 
+# -----------------------
+# GPIO Setup
+# -----------------------
 GPIO.setmode(GPIO.BCM)
 
-# Servo pins
-SERVO_LEFT = 18
-SERVO_RIGHT = 19
+SERVO1 = 18
+SERVO2 = 19
+BUTTON = board.D17
 
-GPIO.setup(SERVO_LEFT, GPIO.OUT)
-GPIO.setup(SERVO_RIGHT, GPIO.OUT)
+GPIO.setup(SERVO1, GPIO.OUT)
+GPIO.setup(SERVO2, GPIO.OUT)
 
-left = GPIO.PWM(SERVO_LEFT, 50)
-right = GPIO.PWM(SERVO_RIGHT, 50)
+servo1 = GPIO.PWM(SERVO1, 50)
+servo2 = GPIO.PWM(SERVO2, 50)
 
-left.start(0)
-right.start(0)
+servo1.start(0)
+servo2.start(0)
 
 # Button setup
-button = digitalio.DigitalInOut(board.D17)
+button = digitalio.DigitalInOut(BUTTON)
 button.switch_to_input(pull=digitalio.Pull.DOWN)
 
 is_open = False
-last_state = False  # for edge detection
+last_state = False
 
-# ---------------------------
-# Move both servos to same angle
-# ---------------------------
-def move_flaps(angle):
-    duty = 2.5 + (angle / 180) * 10
-    left.ChangeDutyCycle(duty)
-    right.ChangeDutyCycle(duty)
-    time.sleep(0.3)  # time to move
-    left.ChangeDutyCycle(0)
-    right.ChangeDutyCycle(0)
+# -----------------------
+# Move both servos
+# -----------------------
+def move_both(angle):
+    duty = 2.5 + (angle / 180.0) * 10
+    servo1.ChangeDutyCycle(duty)
+    servo2.ChangeDutyCycle(duty)
+    time.sleep(0.3)
+    servo1.ChangeDutyCycle(0)
+    servo2.ChangeDutyCycle(0)
 
-print("System ready. Press button to toggle flaps.")
+print("Ready. Press button to toggle flaps.")
 
+# -----------------------
+# Main loop
+# -----------------------
 try:
     while True:
         current_state = button.value
 
-        # Detect rising edge (button press)
-        if current_state and not last_state:
+        if current_state and not last_state:  # button pressed
             if is_open:
-                # CLOSE flaps
-                move_flaps(180)  # both flat
+                move_both(180)  # close flaps
                 is_open = False
                 print("Flaps CLOSED")
             else:
-                # OPEN flaps
-                move_flaps(90)   # both vertical/open
+                move_both(90)   # open flaps
                 is_open = True
                 print("Flaps OPEN")
 
@@ -61,7 +64,7 @@ try:
         time.sleep(0.02)
 
 except KeyboardInterrupt:
-    left.stop()
-    right.stop()
+    servo1.stop()
+    servo2.stop()
     GPIO.cleanup()
     print("Program stopped.")
