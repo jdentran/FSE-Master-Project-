@@ -1,59 +1,79 @@
 import RPi.GPIO as GPIO
 import time
+import board
+import digitalio
 
-BUTTON_PIN = 17
-LEFT_SERVO = 18
-RIGHT_SERVO = 19  # Example second pin
-
+# ---------------------------
+# GPIO Setup
+# ---------------------------
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-GPIO.setup(LEFT_SERVO, GPIO.OUT)
-GPIO.setup(RIGHT_SERVO, GPIO.OUT)
 
-left_pwm = GPIO.PWM(LEFT_SERVO, 50)
-right_pwm = GPIO.PWM(RIGHT_SERVO, 50)
-left_pwm.start(0)
-right_pwm.start(0)
+# Servo pins
+SERVO_LEFT = 18
+SERVO_RIGHT = 19
 
-def move_servo(pwm, start_angle, end_angle, step=2, delay=0.02):
-    if start_angle < end_angle:
-        angles = range(start_angle, end_angle + 1, step)
-    else:
-        angles = range(start_angle, end_angle - 1, -step)
-    for angle in angles:
-        duty = 2 + (angle / 18)
-        pwm.ChangeDutyCycle(duty)
-        time.sleep(delay)
-    pwm.ChangeDutyCycle(0)
+GPIO.setup(SERVO_LEFT, GPIO.OUT)
+GPIO.setup(SERVO_RIGHT, GPIO.OUT)
 
-print("Press the button to flip the hamper 90° each time.")
+left = GPIO.PWM(SERVO_LEFT, 50)
+right = GPIO.PWM(SERVO_RIGHT, 50)
 
-last_button_state = GPIO.input(BUTTON_PIN)
-current_angle = 180  # Start neutral (closed)
+left.start(0)
+right.start(0)
 
+# Button setup
+button = digitalio.DigitalInOut(board.D17)
+button.switch_to_input(pull=digitalio.Pull.DOWN)
+
+# Track flap state
+is_open = False
+last_state = False  # for edge detection
+
+# ---------------------------
+# Move servos
+# ---------------------------
+def move_flaps(target_angle):
+    """
+    Servo1 (left): normal duty cycle
+    Servo2 (right): full software inversion
+    """
+    left_duty = 2.5 + (target_angle / 180) * 10
+    right_duty = 12.5 - (target_angle / 180) * 10  # fully inverted
+
+    left.ChangeDutyCycle(left_duty)
+    right.ChangeDutyCycle(right_duty)
+
+    time.sleep(0.3)  # movement time
+    left.ChangeDutyCycle(0)
+    right.ChangeDutyCycle(0)
+
+print("System ready. Press button to toggle flaps (mirrored).")
+
+# ---------------------------
+# Main loop
+# ---------------------------
 try:
     while True:
-        button_state = GPIO.input(BUTTON_PIN)
+        current_state = button.value
 
-        if last_button_state == GPIO.HIGH and button_state == GPIO.LOW:
-            print("Button pressed! Flipping servos...")
+        # Detect rising edge (button press)
+        if current_state and not last_state:
+            if is_open:
+                # CLOSE flaps → default positions
+                move_flaps(180)  # left closed, right auto-mirrored
+                is_open = False
+            else:
+                # OPEN flaps → 90° flip
+                move_flaps(90)   # left open, right auto-mirrored
+                is_open = True
 
-            # Compute next angle
-            next_angle = 90 if current_angle == 180 else 180
+            time.sleep(0.25)  # debounce
 
-            # Move left servo
-            move_servo(left_pwm, current_angle, next_angle)
-            # Move right servo mirrored
-            move_servo(right_pwm, 180 - current_angle, 180 - next_angle)
-
-            current_angle = next_angle
-            print(f"Left servo: {current_angle}°, Right servo: {180 - current_angle}°")
-
-        last_button_state = button_state
-        time.sleep(0.05)
+        last_state = current_state
+        time.sleep(0.02)
 
 except KeyboardInterrupt:
-    left_pwm.stop()
-    right_pwm.stop()
+    left.stop()
+    right.stop()
     GPIO.cleanup()
-    print("Program terminated")
+    print("Program stopped.")
