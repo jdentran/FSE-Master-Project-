@@ -26,7 +26,7 @@ def move_servo(start_angle, end_angle, step=2, delay=0.02):
 print("Press the button to flip the hamper 90° each time.")
 
 last_button_state = GPIO.input(BUTTON_PIN)
-current_angle = 0  # Start neutral at 0°
+current_angle = 180  # Start neutral at 180° (closed)
 
 try:
     while True:
@@ -35,7 +35,7 @@ try:
         # Detect button press (edge)
         if last_button_state == GPIO.HIGH and button_state == GPIO.LOW:
             print("Button pressed! Flipping servo...")
-            next_angle = 90 if current_angle == 0 else 0
+            next_angle = 90 if current_angle == 180 else 180
             move_servo(current_angle, next_angle)
             current_angle = next_angle
             print(f"Servo now at {current_angle}°")
