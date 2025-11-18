@@ -18,27 +18,24 @@ pwm.start(0)
 def set_servo_angle(angle):
     duty = 2 + (angle / 18)
     pwm.ChangeDutyCycle(duty)
-    time.sleep(0.02)
+    time.sleep(0.5)  # Adjust speed if needed
     pwm.ChangeDutyCycle(0)
 
-print("Press the button to rotate servo fully.")
+print("Press the button to flip the hamper once.")
 
-last_button_state = GPIO.input(BUTTON_PIN)
+# Track if servo has already moved
+servo_moved = False
 
 try:
     while True:
-        current_button_state = GPIO.input(BUTTON_PIN)
-
-        # Detect button press (edge detection)
-        if last_button_state == GPIO.HIGH and current_button_state == GPIO.LOW:
-            print("Button pressed! Rotating servo...")
-            # Move servo from 0° → 180° progressively
-            for angle in range(0, 181, 5):
+        if not servo_moved and GPIO.input(BUTTON_PIN) == GPIO.LOW:
+            print("Button pressed! Rotating servo 0° → 180°...")
+            for angle in range(0, 181, 5):  # Step through 0 → 180°
                 set_servo_angle(angle)
-            print("Servo reached end position.")
+            print("Servo finished rotation. It will stay at 180°.")
+            servo_moved = True  # Prevent further movement
 
-        last_button_state = current_button_state
-        time.sleep(0.05)  # small delay to reduce CPU usage
+        time.sleep(0.05)
 
 except KeyboardInterrupt:
     pwm.stop()
