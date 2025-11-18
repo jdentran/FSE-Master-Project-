@@ -11,35 +11,34 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(SERVO_PIN, GPIO.OUT)
 
+# PWM for servo
 pwm = GPIO.PWM(SERVO_PIN, 50)  # 50Hz
 pwm.start(0)
 
 def set_servo_angle(angle):
-    duty = 2 + (angle / 18)  # Convert angle to duty cycle
+    duty = 2 + (angle / 18)
     pwm.ChangeDutyCycle(duty)
-    time.sleep(0.5)           # Adjust speed
+    time.sleep(0.02)
     pwm.ChangeDutyCycle(0)
 
-print("Press the button to flip the hamper.")
+print("Press the button to rotate servo fully.")
+
+last_button_state = GPIO.input(BUTTON_PIN)
 
 try:
     while True:
-        if GPIO.input(BUTTON_PIN) == GPIO.LOW:  # Button pressed
-            print("Button pressed! Moving servo to full position...")
+        current_button_state = GPIO.input(BUTTON_PIN)
 
-            # Move servo progressively from current to end
-            for angle in range(0, 181, 5):  # 0° → 180°, step 5°
+        # Detect button press (edge detection)
+        if last_button_state == GPIO.HIGH and current_button_state == GPIO.LOW:
+            print("Button pressed! Rotating servo...")
+            # Move servo from 0° → 180° progressively
+            for angle in range(0, 181, 5):
                 set_servo_angle(angle)
+            print("Servo reached end position.")
 
-            print("Servo reached final position. Waiting for next button press.")
-
-            # Wait for button release before next press
-            while GPIO.input(BUTTON_PIN) == GPIO.LOW:
-                time.sleep(0.1)
-
-        else:
-            # Do nothing when button not pressed
-            time.sleep(0.1)
+        last_button_state = current_button_state
+        time.sleep(0.05)  # small delay to reduce CPU usage
 
 except KeyboardInterrupt:
     pwm.stop()
