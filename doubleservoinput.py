@@ -30,24 +30,20 @@ is_open = False
 last_state = False  # for edge detection
 
 # ---------------------------
-# Move servos
+# Move servos identically
 # ---------------------------
 def move_flaps(target_angle):
     """
-    Servo1 (left): normal duty cycle
-    Servo2 (right): full software inversion
+    Both servos move to the exact same angle.
     """
-    left_duty = 2.5 + (target_angle / 180) * 10
-    right_duty = 12.5 - (target_angle / 180) * 10  # fully inverted
-
-    left.ChangeDutyCycle(left_duty)
-    right.ChangeDutyCycle(right_duty)
-
+    duty = 2.5 + (target_angle / 180) * 10
+    left.ChangeDutyCycle(duty)
+    right.ChangeDutyCycle(duty)
     time.sleep(0.3)  # movement time
     left.ChangeDutyCycle(0)
     right.ChangeDutyCycle(0)
 
-print("System ready. Press button to toggle flaps (mirrored).")
+print("System ready. Press button to toggle flaps.")
 
 # ---------------------------
 # Main loop
@@ -59,13 +55,15 @@ try:
         # Detect rising edge (button press)
         if current_state and not last_state:
             if is_open:
-                # CLOSE flaps → default positions
-                move_flaps(180)  # left closed, right auto-mirrored
+                # CLOSE flaps → both to 180°
+                move_flaps(180)
                 is_open = False
+                print("Flaps CLOSED")
             else:
-                # OPEN flaps → 90° flip
-                move_flaps(90)   # left open, right auto-mirrored
+                # OPEN flaps → both to 90°
+                move_flaps(90)
                 is_open = True
+                print("Flaps OPEN")
 
             time.sleep(0.25)  # debounce
 
