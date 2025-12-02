@@ -8,7 +8,7 @@ GPIO.setmode(GPIO.BCM)
 # Servo pins
 SERVO1 = 18  # left servo
 SERVO2 = 19  # right servo
-BUTTON = board.D17
+BUTTON = board.D22
 
 GPIO.setup(SERVO1, GPIO.OUT)
 GPIO.setup(SERVO2, GPIO.OUT)
