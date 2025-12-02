@@ -1,57 +1,65 @@
 import RPi.GPIO as GPIO
 import time
+import sys
+import termios
+import tty
 
 GPIO.setmode(GPIO.BCM)
 
-# -----------------------
-# SERVO PIN
-# -----------------------
 SORTER = 17
 GPIO.setup(SORTER, GPIO.OUT)
 
-sorter = GPIO.PWM(SORTER, 50)  # 50Hz
+sorter = GPIO.PWM(SORTER, 50)
 sorter.start(0)
 
 # -----------------------
-# ★★★ CALIBRATION VALUES ★★★
-# YOU WILL TUNE THESE
+# STARTING DUTY (will be tuned)
 # -----------------------
-NEUTRAL_DUTY = 7.5   # FLAT plank (start here)
-RIGHT_DUTY   = 6.2   # LEFT side UP → drops RIGHT
-LEFT_DUTY    = 8.8   # RIGHT side UP → drops LEFT
+duty = 7.5   # starting guess
 
-# -----------------------
-def move_duty(duty):
-    sorter.ChangeDutyCycle(duty)
-    time.sleep(0.5)
+def move(d):
+    sorter.ChangeDutyCycle(d)
+    time.sleep(0.25)
     sorter.ChangeDutyCycle(0)
 
-print("Starting Tilt Platform Test...")
+def getch():
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setraw(fd)
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    return ch
+
+print("\n--- SERVO CALIBRATION MODE ---")
+print("A = move LEFT")
+print("D = move RIGHT")
+print("S = SAVE as NEUTRAL")
+print("Q = quit\n")
 
 try:
     while True:
+        print(f"\rCurrent Duty: {duty:.2f}   ", end="")
+        move(duty)
 
-        # -------- FLAT (NEUTRAL) --------
-        print("FLAT (NEUTRAL)")
-        move_duty(NEUTRAL_DUTY)
-        time.sleep(1.5)
+        key = getch()
 
-        # -------- DROP TO RIGHT --------
-        print("DROP → RIGHT (Left side UP)")
-        move_duty(RIGHT_DUTY)
-        time.sleep(1.5)
+        if key.lower() == 'a':
+            duty -= 0.05
+        elif key.lower() == 'd':
+            duty += 0.05
+        elif key.lower() == 's':
+            print(f"\n✅ SAVED NEUTRAL DUTY = {duty:.2f}")
+        elif key.lower() == 'q':
+            break
 
-        # -------- BACK TO FLAT --------
-        print("RETURN TO FLAT")
-        move_duty(NEUTRAL_DUTY)
-        time.sleep(1.5)
-
-        # -------- DROP TO LEFT --------
-        print("DROP → LEFT (Right side UP)")
-        move_duty(LEFT_DUTY)
-        time.sleep(1.5)
+        # SAFETY LIMITS
+        duty = max(5.5, min(9.5, duty))
 
 except KeyboardInterrupt:
-    sorter.stop()
-    GPIO.cleanup()
-    print("Program stopped.")
+    pass
+
+sorter.stop()
+GPIO.cleanup()
+print("\nProgram stopped.")
