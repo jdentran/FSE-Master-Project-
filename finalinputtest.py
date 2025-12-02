@@ -27,7 +27,7 @@ servo1.start(0)
 servo2.start(0)
 
 # Button to start detection / drop flaps
-BUTTON = board.D17
+BUTTON = board.D22
 button = digitalio.DigitalInOut(BUTTON)
 button.switch_to_input(pull=digitalio.Pull.DOWN)
 is_open = False
