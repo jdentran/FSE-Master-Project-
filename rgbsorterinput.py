@@ -2,7 +2,6 @@ import RPi.GPIO as GPIO
 import time
 import board
 import busio
-import digitalio
 import adafruit_tcs34725
 
 # -----------------------
@@ -16,11 +15,6 @@ GPIO.setup(SORTER, GPIO.OUT)
 sorter = GPIO.PWM(SORTER, 50)
 sorter.start(0)
 
-# Button to start detection
-BUTTON = board.D22
-button = digitalio.DigitalInOut(BUTTON)
-button.switch_to_input(pull=digitalio.Pull.DOWN)
-
 # -----------------------
 # TCS34725 SETUP
 # -----------------------
@@ -32,43 +26,35 @@ sensor.gain = 60
 # -----------------------
 # SORTER SERVO DUTY CYCLES
 # -----------------------
-NEUTRAL_DUTY = 9.5    # flat
-RIGHT_DUTY   = 8.0    # drop RIGHT (white)
-LEFT_DUTY    = 11.0   # drop LEFT (dark)
+NEUTRAL_DUTY = 9.50   # flat plank
+RIGHT_DUTY   = 8.00   # drop RIGHT (white)
+LEFT_DUTY    = 11.00  # drop LEFT (dark)
 
 # -----------------------
 # FUNCTIONS
 # -----------------------
-def move_sorter(duty):
+def move_duty(duty):
     sorter.ChangeDutyCycle(duty)
-    time.sleep(0.5)
+    time.sleep(0.5)    # allow servo to move
     sorter.ChangeDutyCycle(0)
-
-# -----------------------
-# WAIT FOR BUTTON
-# -----------------------
-print("Press button to start detection...")
-
-while not button.value:
-    time.sleep(0.05)
-
-print("Button pressed! Starting color detection...")
 
 # -----------------------
 # MAIN LOOP
 # -----------------------
+print("Waiting for clothing detection...")
+
 try:
     while True:
 
-        # Reset to flat
+        # Reset to neutral
         print("Resetting to NEUTRAL")
-        move_sorter(NEUTRAL_DUTY)
-        time.sleep(1)
+        move_duty(NEUTRAL_DUTY)
+        time.sleep(0.5)
 
         # Read color
         r, g, b, c = sensor.color_raw
         if c == 0:
-            print("No object detected.")
+            print("No clothing detected, skipping...")
             continue
 
         r_norm = r / c
@@ -76,17 +62,16 @@ try:
         b_norm = b / c
         brightness = 0.299 * r_norm + 0.587 * g_norm + 0.114 * b_norm
 
-        # Decide color
+        # Decide color and move sorter
         if c > 40 and brightness > 0.40:
-            print("Detected: WHITE clothing")
-            move_sorter(RIGHT_DUTY)
+            print("Detected: WHITE clothing → dropping RIGHT")
+            move_duty(RIGHT_DUTY)
         else:
-            print("Detected: DARK clothing")
-            move_sorter(LEFT_DUTY)
+            print("Detected: DARK clothing → dropping LEFT")
+            move_duty(LEFT_DUTY)
 
-        # Stabilize before next item
-        print("Waiting 5 seconds...")
-        time.sleep(5)
+        # Wait a short moment before next reading
+        time.sleep(1)
 
 except KeyboardInterrupt:
     sorter.stop()

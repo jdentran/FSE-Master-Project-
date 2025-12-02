@@ -1,77 +1,54 @@
 import RPi.GPIO as GPIO
 import time
-import board
-import busio
-import adafruit_tcs34725
 
-# -----------------------
-# GPIO SETUP
-# -----------------------
 GPIO.setmode(GPIO.BCM)
 
-# Sorter servo
+# -----------------------
+# SERVO PIN
+# -----------------------
 SORTER = 17
 GPIO.setup(SORTER, GPIO.OUT)
-sorter = GPIO.PWM(SORTER, 50)
+
+sorter = GPIO.PWM(SORTER, 50)  # 50Hz
 sorter.start(0)
 
 # -----------------------
-# TCS34725 SETUP
-# -----------------------
-i2c = busio.I2C(board.SCL, board.SDA)
-sensor = adafruit_tcs34725.TCS34725(i2c)
-sensor.integration_time = 400
-sensor.gain = 60
-
-# -----------------------
-# SORTER SERVO DUTY CYCLES
+# CALIBRATED DUTY CYCLES
 # -----------------------
 NEUTRAL_DUTY = 9.50   # flat plank
-RIGHT_DUTY   = 8.00   # drop RIGHT (white)
-LEFT_DUTY    = 11.00  # drop LEFT (dark)
+RIGHT_DUTY   = 8.00   # left side rises → drop right
+LEFT_DUTY    = 11.00  # right side rises → drop left
 
-# -----------------------
-# FUNCTIONS
 # -----------------------
 def move_duty(duty):
     sorter.ChangeDutyCycle(duty)
-    time.sleep(0.5)    # allow servo to move
+    time.sleep(0.5)    # allow MG995 to move
     sorter.ChangeDutyCycle(0)
 
-# -----------------------
-# MAIN LOOP
-# -----------------------
-print("Waiting for clothing detection...")
+print("Starting Tilt Platform Test (Neutral = 9.50)...")
 
 try:
     while True:
 
-        # Reset to neutral
-        print("Resetting to NEUTRAL")
+        # -------- FLAT (NEUTRAL) --------
+        print("FLAT (NEUTRAL)")
         move_duty(NEUTRAL_DUTY)
-        time.sleep(0.5)
+        time.sleep(1.5)
 
-        # Read color
-        r, g, b, c = sensor.color_raw
-        if c == 0:
-            print("No clothing detected, skipping...")
-            continue
+        # -------- DROP TO RIGHT --------
+        print("DROP → RIGHT (Left side UP)")
+        move_duty(RIGHT_DUTY)
+        time.sleep(1.5)
 
-        r_norm = r / c
-        g_norm = g / c
-        b_norm = b / c
-        brightness = 0.299 * r_norm + 0.587 * g_norm + 0.114 * b_norm
+        # -------- BACK TO FLAT --------
+        print("RETURN TO FLAT")
+        move_duty(NEUTRAL_DUTY)
+        time.sleep(1.5)
 
-        # Decide color and move sorter
-        if c > 40 and brightness > 0.40:
-            print("Detected: WHITE clothing → dropping RIGHT")
-            move_duty(RIGHT_DUTY)
-        else:
-            print("Detected: DARK clothing → dropping LEFT")
-            move_duty(LEFT_DUTY)
-
-        # Wait a short moment before next reading
-        time.sleep(1)
+        # -------- DROP TO LEFT --------
+        print("DROP → LEFT (Right side UP)")
+        move_duty(LEFT_DUTY)
+        time.sleep(1.5)
 
 except KeyboardInterrupt:
     sorter.stop()
