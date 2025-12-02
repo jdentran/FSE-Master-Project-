@@ -77,12 +77,12 @@ print("Button pressed! System starting...")
 try:
     while True:
 
-        # 1️⃣ FLAT SORTER BEFORE DETECTION
+        # FLAT SORTER BEFORE DETECTION
         print("FLAT (NEUTRAL)")
         move_sorter(NEUTRAL_DUTY)
         time.sleep(0.5)
 
-        # 2️⃣ DETECT COLOR
+        # DETECT COLOR
         r, g, b, c = sensor.color_raw
         if c == 0:
             continue  # skip if no reading
@@ -100,11 +100,11 @@ try:
             print("Detected: DARK clothing")
             move_sorter(LEFT_DUTY)
 
-        # 3️⃣ SHORT DELAY TO LET SORTER STABILIZE
+        # 3SHORT DELAY TO LET SORTER STABILIZE
         print("Waiting 5 seconds to stabilize before dropping...")
         time.sleep(5)
 
-        # 4️⃣ WAIT FOR BUTTON TO DROP FLAPS
+        # WAIT FOR BUTTON TO DROP FLAPS
         print("Press button to drop flaps...")
         while True:
             current_state = button.value
@@ -123,7 +123,7 @@ try:
                 break
             time.sleep(0.02)
 
-        # 5️⃣ RETURN SORTER TO NEUTRAL
+        # RETURN SORTER TO NEUTRAL
         print("Returning sorter to NEUTRAL")
         move_sorter(NEUTRAL_DUTY)
         time.sleep(1)
