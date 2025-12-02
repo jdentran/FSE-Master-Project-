@@ -25,7 +25,7 @@ while True:
     print("Lux:", sensor.lux)
     print("Normalized RGB:", rgb)
 
-    if c > 100 and brightness > 0.55:
+    if c > 40 and brightness > 0.40:
         print("Light / White Clothing Detected")
     else:
         print("Dark / Colored Clothing Detected")
