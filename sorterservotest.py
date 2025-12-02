@@ -4,55 +4,52 @@ import time
 GPIO.setmode(GPIO.BCM)
 
 # -----------------------
-# MIDDLE SERVO PIN
+# SERVO PIN
 # -----------------------
 SORTER = 17
 GPIO.setup(SORTER, GPIO.OUT)
 
-sorter = GPIO.PWM(SORTER, 50)
+sorter = GPIO.PWM(SORTER, 50)  # 50Hz
 sorter.start(0)
 
 # -----------------------
-# CALIBRATION VALUES
+# ★★★ CALIBRATION VALUES ★★★
+# YOU WILL TUNE THESE
 # -----------------------
-NEUTRAL = 180    # YOUR true mechanical center
-LEFT = 120       # Dark side (adjust if needed)
-RIGHT = 240      # Pale side (adjust if needed)
+NEUTRAL_DUTY = 7.5   # FLAT plank (start here)
+RIGHT_DUTY   = 6.2   # LEFT side UP → drops RIGHT
+LEFT_DUTY    = 8.8   # RIGHT side UP → drops LEFT
 
 # -----------------------
-# Servo Move Function
-# -----------------------
-def move_sorter(angle):
-    duty = 2.5 + (angle / 180.0) * 10
+def move_duty(duty):
     sorter.ChangeDutyCycle(duty)
     time.sleep(0.5)
     sorter.ChangeDutyCycle(0)
 
-print("Starting Middle Servo Test (Neutral = 180)...")
+print("Starting Tilt Platform Test...")
 
-# -----------------------
-# MAIN LOOP
-# -----------------------
 try:
     while True:
-        # NEUTRAL (CENTER)
-        print("Neutral (CENTER)")
-        move_sorter(NEUTRAL)
-        time.sleep(1)
 
-        # LEFT (DARK)
-        print("LEFT (Dark)")
-        move_sorter(LEFT)
-        time.sleep(1)
+        # -------- FLAT (NEUTRAL) --------
+        print("FLAT (NEUTRAL)")
+        move_duty(NEUTRAL_DUTY)
+        time.sleep(1.5)
 
-        # BACK TO NEUTRAL
-        move_sorter(NEUTRAL)
-        time.sleep(1)
+        # -------- DROP TO RIGHT --------
+        print("DROP → RIGHT (Left side UP)")
+        move_duty(RIGHT_DUTY)
+        time.sleep(1.5)
 
-        # RIGHT (PALE)
-        print("RIGHT (Pale)")
-        move_sorter(RIGHT)
-        time.sleep(1)
+        # -------- BACK TO FLAT --------
+        print("RETURN TO FLAT")
+        move_duty(NEUTRAL_DUTY)
+        time.sleep(1.5)
+
+        # -------- DROP TO LEFT --------
+        print("DROP → LEFT (Right side UP)")
+        move_duty(LEFT_DUTY)
+        time.sleep(1.5)
 
 except KeyboardInterrupt:
     sorter.stop()
