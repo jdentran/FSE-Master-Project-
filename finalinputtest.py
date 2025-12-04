@@ -26,12 +26,10 @@ servo2 = GPIO.PWM(SERVO2, 50)
 servo1.start(0)
 servo2.start(0)
 
-# Button to start detection / drop flaps
+# Button
 BUTTON = board.D22
 button = digitalio.DigitalInOut(BUTTON)
 button.switch_to_input(pull=digitalio.Pull.DOWN)
-is_open = False
-last_state = False
 
 # -----------------------
 # TCS34725 SETUP
@@ -42,19 +40,18 @@ sensor.integration_time = 400
 sensor.gain = 60
 
 # -----------------------
-# SORTER SERVO DUTY CYCLES
+# SERVO DUTY CYCLES
 # -----------------------
-NEUTRAL_DUTY = 9.50   # flat plank
-RIGHT_DUTY   = 8.00   # left side rises → drop right (white)
-LEFT_DUTY    = 11.00   # right side rises → drop left (dark)
+NEUTRAL_DUTY = 9.50   # Flat
+RIGHT_DUTY   = 8.00   # Drop RIGHT (white)
+LEFT_DUTY    = 11.00  # Drop LEFT (dark)
 
 # -----------------------
-# FUNCTIONS
+# SERVO FUNCTIONS
 # -----------------------
 def move_sorter(duty):
     sorter.ChangeDutyCycle(duty)
-    time.sleep(0.5)
-    sorter.ChangeDutyCycle(0)
+    time.sleep(0.6)
 
 def move_flaps(left_angle):
     right_angle = 270 - left_angle
@@ -62,70 +59,85 @@ def move_flaps(left_angle):
     duty2 = 2.5 + (right_angle / 180.0) * 10
     servo1.ChangeDutyCycle(duty1)
     servo2.ChangeDutyCycle(duty2)
-    time.sleep(0.3)
-    servo1.ChangeDutyCycle(0)
-    servo2.ChangeDutyCycle(0)
+    time.sleep(0.6)
 
 # -----------------------
-# WAIT FOR BUTTON TO START
+# BUTTON DEBOUNCE
 # -----------------------
-print("Press button to start sorting...")
-while not button.value:
-    time.sleep(0.05)
-print("Button pressed! System starting...")
+def wait_for_press():
+    while button.value:      # wait for release
+        time.sleep(0.02)
+    while not button.value:  # wait for press
+        time.sleep(0.02)
+    time.sleep(0.25)         # debounce delay
 
+# -----------------------
+# WAIT FOR START
+# -----------------------
+print("Press button to START system...")
+wait_for_press()
+print("System started.\n")
+
+# -----------------------
+# MAIN LOOP
+# -----------------------
 try:
     while True:
 
-        # FLAT SORTER BEFORE DETECTION
-        print("FLAT (NEUTRAL)")
+        # RESET SYSTEM
+        print("RESETTING TO NEUTRAL")
         move_sorter(NEUTRAL_DUTY)
-        time.sleep(0.5)
+        move_flaps(180)
 
-        # DETECT COLOR
-        r, g, b, c = sensor.color_raw
-        if c == 0:
-            continue  # skip if no reading
-        r_norm = r / c
-        g_norm = g / c
-        b_norm = b / c
-        brightness = 0.299 * r_norm + 0.587 * g_norm + 0.114 * b_norm
+        # -------- 5 SECOND STABILIZED SAMPLING --------
+        print("Stabilizing color detection (5 seconds)...")
+        end_time = time.time() + 5
 
-        if c > 40 and brightness > 0.40:
-            clothing = "white"
-            print("Detected: WHITE clothing")
+        white_count = 0
+        dark_count = 0
+
+        while time.time() < end_time:
+            r, g, b, c = sensor.color_raw
+            if c == 0:
+                continue
+
+            r_norm = r / c
+            g_norm = g / c
+            b_norm = b / c
+            brightness = 0.299 * r_norm + 0.587 * g_norm + 0.114 * b_norm
+
+            if c > 40 and brightness > 0.40:
+                white_count += 1
+            else:
+                dark_count += 1
+
+            time.sleep(0.1)
+
+        # -------- FINAL DECISION --------
+        if white_count > dark_count:
+            print("FINAL DECISION: WHITE")
             move_sorter(RIGHT_DUTY)
         else:
-            clothing = "dark"
-            print("Detected: DARK clothing")
+            print("FINAL DECISION: DARK")
             move_sorter(LEFT_DUTY)
 
-        # 3SHORT DELAY TO LET SORTER STABILIZE
-        print("Waiting 5 seconds to stabilize before dropping...")
-        time.sleep(5)
+        # -------- FIRST BUTTON: DROP --------
+        print("Press button to DROP...")
+        wait_for_press()
 
-        # WAIT FOR BUTTON TO DROP FLAPS
-        print("Press button to drop flaps...")
-        while True:
-            current_state = button.value
-            if current_state and not last_state:
-                if is_open:
-                    move_flaps(180)  # close flaps
-                    is_open = False
-                    print("Flaps CLOSED")
-                else:
-                    move_flaps(90)   # open flaps
-                    is_open = True
-                    print("Flaps OPEN")
-                time.sleep(0.25)
-            last_state = current_state
-            if is_open:  # flap has moved, break to reset sorter
-                break
-            time.sleep(0.02)
+        move_flaps(90)
+        print("Flaps OPEN (DROPPED)")
 
-        # RETURN SORTER TO NEUTRAL
-        print("Returning sorter to NEUTRAL")
+        # -------- SECOND BUTTON: RESET --------
+        print("Press button to RESET...")
+        wait_for_press()
+
+        move_flaps(180)
+        print("Flaps CLOSED")
+
         move_sorter(NEUTRAL_DUTY)
+        print("Sorter RESET COMPLETE\n")
+
         time.sleep(1)
 
 except KeyboardInterrupt:
@@ -133,4 +145,4 @@ except KeyboardInterrupt:
     servo1.stop()
     servo2.stop()
     GPIO.cleanup()
-    print("Program stopped.")
+    print("Program stopped safely.")
