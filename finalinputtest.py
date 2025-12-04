@@ -84,17 +84,18 @@ print("System initialized. Press button to RESET system.")
 wait_for_press()
 
 while True:
-    # -------- BUTTON PRESS #1: RESET SYSTEM --------
+    #   BUTTON PRESS #1 RESET
     print("Resetting system...")
     move_sorter(NEUTRAL_DUTY)
     move_flaps(FLAPS_CLOSED)
     print("System is now in NEUTRAL state (flaps closed).")
     
+    # Wait for next stage
     print("Press button to START RGB detection.")
     wait_for_press()
 
-    # -------- BUTTON PRESS #2: START RGB DETECTION --------
-    print("Starting stabilized RGB detection for 5 seconds...")
+    # BUTTON PRESS #2: START RGB 
+    print("Stabilizing RGB detection for 5 seconds...")
     end_time = time.time() + 5
     white_count = 0
     dark_count = 0
@@ -124,12 +125,11 @@ while True:
         print("FINAL DECISION: DARK")
         move_sorter(LEFT_DUTY)
 
+    # BUTTON PRESS #3 
     print("Press button to DROP flaps.")
     wait_for_press()
-
-    # -------- BUTTON PRESS #3: DROP --------
     move_flaps(FLAPS_OPEN)
     print("Flaps OPEN, clothes dropped.")
 
-    print("Waiting for next cycle...")
-    time.sleep(1)
+    print("System is now in DROPPED state. Press button to RESET again when ready.\n")
+    wait_for_press()  # Wait for manual reset to start next cycle
