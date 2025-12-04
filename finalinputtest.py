@@ -42,9 +42,15 @@ sensor.gain = 60
 # -----------------------
 # SERVO DUTY CYCLES
 # -----------------------
-NEUTRAL_DUTY = 9.50   # Flat
-RIGHT_DUTY   = 8.00   # Drop RIGHT (white)
-LEFT_DUTY    = 11.00  # Drop LEFT (dark)
+NEUTRAL_DUTY = 9.50
+RIGHT_DUTY   = 8.00
+LEFT_DUTY    = 11.00
+
+# -----------------------
+# FLAP LOGIC (FIXED)
+# -----------------------
+FLAPS_OPEN   = 180   # DROPS CLOTHES
+FLAPS_CLOSED = 90    # NORMAL SORTING MODE
 
 # -----------------------
 # SERVO FUNCTIONS
@@ -65,11 +71,11 @@ def move_flaps(left_angle):
 # BUTTON DEBOUNCE
 # -----------------------
 def wait_for_press():
-    while button.value:      # wait for release
+    while button.value:
         time.sleep(0.02)
-    while not button.value:  # wait for press
+    while not button.value:
         time.sleep(0.02)
-    time.sleep(0.25)         # debounce delay
+    time.sleep(0.25)
 
 # -----------------------
 # WAIT FOR START
@@ -84,10 +90,10 @@ print("System started.\n")
 try:
     while True:
 
-        # RESET SYSTEM
+        # RESET SYSTEM (FLAPS CLOSED)
         print("RESETTING TO NEUTRAL")
         move_sorter(NEUTRAL_DUTY)
-        move_flaps(180)
+        move_flaps(FLAPS_CLOSED)
 
         # -------- 5 SECOND STABILIZED SAMPLING --------
         print("Stabilizing color detection (5 seconds)...")
@@ -125,18 +131,16 @@ try:
         print("Press button to DROP...")
         wait_for_press()
 
-        move_flaps(90)
-        print("Flaps OPEN (DROPPED)")
+        move_flaps(FLAPS_OPEN)
+        print("Flaps OPEN (CLOTHES DROPPED)")
 
         # -------- SECOND BUTTON: RESET --------
         print("Press button to RESET...")
         wait_for_press()
 
-        move_flaps(180)
-        print("Flaps CLOSED")
-
+        move_flaps(FLAPS_CLOSED)
         move_sorter(NEUTRAL_DUTY)
-        print("Sorter RESET COMPLETE\n")
+        print("System RESET COMPLETE\n")
 
         time.sleep(1)
 
