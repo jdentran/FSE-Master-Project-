@@ -42,15 +42,15 @@ sensor.gain = 60
 # -----------------------
 # SERVO DUTY CYCLES
 # -----------------------
-NEUTRAL_DUTY = 9.50
-RIGHT_DUTY   = 8.00
-LEFT_DUTY    = 11.00
+NEUTRAL_DUTY = 9.5
+RIGHT_DUTY = 7.5   # Slightly more extreme
+LEFT_DUTY = 11.5   # Slightly more extreme
 
 # -----------------------
-# FLAP LOGIC (FIXED)
+# FLAP LOGIC
 # -----------------------
-FLAPS_OPEN   = 180   # DROPS CLOTHES
-FLAPS_CLOSED = 90    # NORMAL SORTING MODE
+FLAPS_OPEN = 180
+FLAPS_CLOSED = 90
 
 # -----------------------
 # SERVO FUNCTIONS
@@ -78,75 +78,58 @@ def wait_for_press():
     time.sleep(0.25)
 
 # -----------------------
-# WAIT FOR START
+# MAIN PROGRAM
 # -----------------------
-print("Press button to START system...")
+print("System initialized. Press button to RESET system.")
 wait_for_press()
-print("System started.\n")
 
-# -----------------------
-# MAIN LOOP
-# -----------------------
-try:
-    while True:
+while True:
+    # -------- BUTTON PRESS #1: RESET SYSTEM --------
+    print("Resetting system...")
+    move_sorter(NEUTRAL_DUTY)
+    move_flaps(FLAPS_CLOSED)
+    print("System is now in NEUTRAL state (flaps closed).")
+    
+    print("Press button to START RGB detection.")
+    wait_for_press()
 
-        # RESET SYSTEM (FLAPS CLOSED)
-        print("RESETTING TO NEUTRAL")
-        move_sorter(NEUTRAL_DUTY)
-        move_flaps(FLAPS_CLOSED)
+    # -------- BUTTON PRESS #2: START RGB DETECTION --------
+    print("Starting stabilized RGB detection for 5 seconds...")
+    end_time = time.time() + 5
+    white_count = 0
+    dark_count = 0
 
-        # -------- 5 SECOND STABILIZED SAMPLING --------
-        print("Stabilizing color detection (5 seconds)...")
-        end_time = time.time() + 5
+    while time.time() < end_time:
+        r, g, b, c = sensor.color_raw
+        if c == 0:
+            continue
+        r_norm = r / c
+        g_norm = g / c
+        b_norm = b / c
+        brightness = 0.299*r_norm + 0.587*g_norm + 0.114*b_norm
 
-        white_count = 0
-        dark_count = 0
-
-        while time.time() < end_time:
-            r, g, b, c = sensor.color_raw
-            if c == 0:
-                continue
-
-            r_norm = r / c
-            g_norm = g / c
-            b_norm = b / c
-            brightness = 0.299 * r_norm + 0.587 * g_norm + 0.114 * b_norm
-
-            if c > 40 and brightness > 0.40:
-                white_count += 1
-            else:
-                dark_count += 1
-
-            time.sleep(0.1)
-
-        # -------- FINAL DECISION --------
-        if white_count > dark_count:
-            print("FINAL DECISION: WHITE")
-            move_sorter(RIGHT_DUTY)
+        if c > 40 and brightness > 0.40:
+            white_count += 1
         else:
-            print("FINAL DECISION: DARK")
-            move_sorter(LEFT_DUTY)
+            dark_count += 1
+        time.sleep(0.1)
 
-        # -------- FIRST BUTTON: DROP --------
-        print("Press button to DROP...")
-        wait_for_press()
+    # Final decision
+    if white_count > dark_count:
+        clothing = "white"
+        print("FINAL DECISION: WHITE")
+        move_sorter(RIGHT_DUTY)
+    else:
+        clothing = "dark"
+        print("FINAL DECISION: DARK")
+        move_sorter(LEFT_DUTY)
 
-        move_flaps(FLAPS_OPEN)
-        print("Flaps OPEN (CLOTHES DROPPED)")
+    print("Press button to DROP flaps.")
+    wait_for_press()
 
-        # -------- SECOND BUTTON: RESET --------
-        print("Press button to RESET...")
-        wait_for_press()
+    # -------- BUTTON PRESS #3: DROP --------
+    move_flaps(FLAPS_OPEN)
+    print("Flaps OPEN, clothes dropped.")
 
-        move_flaps(FLAPS_CLOSED)
-        move_sorter(NEUTRAL_DUTY)
-        print("System RESET COMPLETE\n")
-
-        time.sleep(1)
-
-except KeyboardInterrupt:
-    sorter.stop()
-    servo1.stop()
-    servo2.stop()
-    GPIO.cleanup()
-    print("Program stopped safely.")
+    print("Waiting for next cycle...")
+    time.sleep(1)
